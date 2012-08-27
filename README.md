@@ -7,17 +7,24 @@ The application is tracing tongue surface contours from ultrasound images, cf.
 Fasel, I., and Berry, J. (2010). Deep belief networks for real-time extraction of tongue contours from ultrasound during speech. 20th International Conference on Pattern Recognition (ICPR), pp. 1493-1496. Available at http://www.u.arizona.edu/~jjberry/ICPR.pdf
 
 TraintDBN.py: a script to train a translational-DBN as described in the above paper to trace tongue surface contours in ultrasound images.
+
 tDBN.py: contains support classes for TraintDBN.py.
+
 loadData.py: loads and formats ultrasound images and trace files for training.
+
 get_activation.py: method 'autotrace' traces and displays test images using a network trained by TraintDBN.py. The class CRFTrainer contains experimental methods to train a set of Conditional Random Fields on sequences of outputs of the tDBN, using CRF++. 
+
 trainCRFs.py & runCRFs.py: support code for the CRFTrainer class in get_activation.py.
 
 Dependencies
 ============
 
 theano: http://deeplearning.net/software/theano/
+
 numpy, scipy
+
 opencv with python bindings: http://opencv.willowgarage.com/wiki/ *note this is only used to load images, and could be replaced with PIL
+
 CRF++: http://crfpp.googlecode.com/svn/trunk/doc/index.html
 
 License
