@@ -4,7 +4,7 @@ translational-DBN
 A variation on Deep Belief Networks that allows labels to be used in pretraining. 
 The application is tracing tongue surface contours from ultrasound images, cf.
 
-    Fasel, I., and Berry, J. (2010). Deep belief networks for real-time extraction of tongue contours from ultrasound during speech. 20th               International Conference on Pattern Recognition (ICPR), pp. 1493-1496. Available at http://www.u.arizona.edu/~jjberry/ICPR.pdf
+Fasel, I., and Berry, J. (2010). Deep belief networks for real-time extraction of tongue contours from ultrasound during speech. 20th International Conference on Pattern Recognition (ICPR), pp. 1493-1496. Available at http://www.u.arizona.edu/~jjberry/ICPR.pdf
 
 TraintDBN.py: a script to train a translational-DBN as described in the above paper to trace tongue surface contours in ultrasound images.
 tDBN.py: contains support classes for TraintDBN.py.
