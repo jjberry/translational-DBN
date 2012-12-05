@@ -131,7 +131,7 @@ class NeuralNet(object):
             else:
                 print "Iteration %3d: TrainErr = %4.3f" %(i+1, trainerr)
             # Train the top layer only for initialfit iters
-            if (i <= initialfit):
+            if (i < initialfit):
                 self.doBackprop(transformedX, targets, [self.network[-1]])
             else:
                 self.doBackprop(data, targets, self.network)
@@ -143,9 +143,9 @@ class NeuralNet(object):
             validerr = self.getError(self.network, validX, validT, 
                     np.ones((validX.shape[0],)))
             print "Final        : TrainErr = %4.3f, ValidErr = %4.3f" % \
-                    (i, trainerr, validerr)
+                    (trainerr, validerr)
         else:
-            print "Final        : TrainErr = %4.3f" %(i, trainerr)
+            print "Final        : TrainErr = %4.3f" %(trainerr)
 
     def getError(self, network, X, T, weights):
         '''
@@ -214,7 +214,7 @@ class NeuralNet(object):
             if result.success is False:
                 print result.message
                 print "Number of evaluations: " + str(result.nfev)
-                print result.x.shape
+                #print result.x.shape
             v = result.x
 
             # unflatten v and put new weights back
@@ -259,12 +259,12 @@ class NeuralNet(object):
             ind += b
 
         # Run data through the network, keeping activations of each layer
-        acts = [] # a list of numpy arrays
+        acts = [X] # a list of numpy arrays
         hid = X
         for layer in network:
             vis = gp.garray(hid)
-            hid = self.get_activation(layer, vis)
-            acts.append(hid) 
+            hid = self.get_activation(layer, vis) 
+            acts.append(hid)
             gp.free_reuse_cache()
 
         # store the gradients
@@ -294,16 +294,22 @@ class NeuralNet(object):
             delta = gp.dot(acts[i].T, Ix)
 
             # split delta into weights and bias parts
-            dW.append(delta[0:-1,:].T)
-            db.append(delta[-1,:].T)
+            dW.append(delta[:-1].T)
+            try:
+                db.append(delta[-1].T)
+            except AttributeError:
+                # when layer only has 1 unit
+                db.append(delta[-1])
 
             # backpropagate the error
             if i > 0:
+                # fix the numpy 1d array issue
+                biasr = network[i].hbias.reshape((1,network[i].hbias.shape[0]))
                 if network[i-1].hidtype == 'sigmoid':
-                    Ix = gp.dot(Ix,gp.concatenate((network[i].W,network[i].hbias)))\
+                    Ix = gp.dot(Ix,gp.concatenate((network[i].W,biasr)).T)\
                             * acts[i] * (1.0 - acts[i])
                 elif network[i-1].hidtype == 'gaussian':
-                    Ix = gp.dot(Ix,gp.concatentate((network[i].W,network[i].hbias)))
+                    Ix = gp.dot(Ix,gp.concatentate((network[i].W,biasr)).T)
                 Ix = Ix[:,-1]
             gp.free_reuse_cache()
         dW.reverse()
@@ -313,11 +319,15 @@ class NeuralNet(object):
         grad = np.zeros_like(v)
         ind = 0
         for i in range(numHiddenLayers):
-            grad[ind:(ind+dW[i].size)] = \
-                 (dW[i].reshape((dW[i].shape[0]*dW[i].shape[1],))).as_numpy_array()
+            grad[ind:(ind+dW[i].size)] = dW[i].as_numpy_array()
             ind += dW[i].size
-            grad[ind:(ind+db[i].size)] = db[i].as_numpy_array()
-            ind += db[i].size
+            try:
+                grad[ind:(ind+db[i].size)] = db[i].as_numpy_array()
+                ind += db[i].size
+            except AttributeError:
+                # when layer has only 1 node
+                grad[ind:(ind+1)] = db[i]
+                ind += 1
 
         return cost, grad  
 
@@ -336,6 +346,20 @@ class Layer(object):
         self.hbias = gp.garray(hbias)
         self.n_hidden = n_hidden
         self.hidtype = hidtype
-    
+   
+def demo_xor():
+    '''Demonstration of backprop with classic XOR example
+    '''
+    data = np.array([[0,0],[0,1],[1,0],[1,1]])
+    targets = np.array([[0],[1],[1],[0]])
+    nn = NeuralNet(layer_sizes=[2,2,1], layer_types=['sigmoid','sigmoid','sigmoid'])
+    nn.train(data, targets, max_iter=10, targetCost='crossEntropy')
+    print "network test:"
+    output = nn.run_through_network(data)
+    print output
 
 
+if __name__ == "__main__":
+    demo_xor()
+
+            
