@@ -9,6 +9,12 @@ Fasel, I., and Berry, J. (2010). Deep belief networks for real-time extraction o
 The code is designed to run on a CUDA-capable GPU using gnumpy, but can be run
 without a GPU. See http://www.cs.toronto.edu/~tijmen/gnumpy.html for details.
 
+An example of a translational deep neural network which ties all these modules
+together is forthcoming - stay tuned!
+
+Contents
+========
+
 deepnet.py: trains stacks of restricted Boltzmann machines.
 
 backprop.py: trains a neural network with backpropagation using conjugate gradient optimization.
@@ -22,7 +28,10 @@ Dependencies
 gnumpy - if you run on a GPU you will need to install cudamat, otherwise you
          will need npmat.py from http://www.cs.toronto.edu/~ilya/npmat.py
 
-numpy, scipy
+numpy 
+
+scipy version 0.11 or newer. Older versions don't have the minimize wrapper
+used in backprop.py. https://github.com/scipy/scipy
 
 opencv with python bindings: http://opencv.willowgarage.com/wiki/ *note this is only used to load images, and could be replaced with PIL
 
