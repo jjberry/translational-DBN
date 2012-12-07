@@ -5,7 +5,6 @@ import numpy as np
 import scipy
 import scipy.optimize
 import deepnet
-import minimize
 
 class NeuralNet(object):
     '''
@@ -15,8 +14,6 @@ class NeuralNet(object):
     variables containing numpy arrays, n_hidden containing the number of 
     hidden units, and hidtype containing a string with the activation type, i.e.
     "sigmoid".
-
-
     '''
     def __init__(self, network=None, layer_sizes=None, layer_types=None):
         layers = []
@@ -30,9 +27,23 @@ class NeuralNet(object):
             assert layer_sizes is not None
             assert layer_types is not None
             assert len(layer_sizes) == len(layer_types)
+            # randomize the network weights according to the Bottou proposition
+            # this is borrowed from the ffnet project:
+            # http://ffnet.sourceforge.net/_modules/ffnet.html#ffnet.randomweights
+            n = 0
             for i in range(len(layer_sizes)-1):
-                W = 0.1 * np.random.randn(layer_sizes[i], layer_sizes[i+1])
-                hbias = -4.0 * np.ones(layer_sizes[i+1])
+                n += layer_sizes[i]*layer_sizes[i+1]
+                n += layer_sizes[i+1]
+            bound = 2.38 / np.sqrt(n)
+            for i in range(len(layer_sizes)-1):
+                W = np.zeros((layer_sizes[i+1]*layer_sizes[i],))
+                for j in range(W.size):
+                    W[j] = np.random.uniform(-bound, bound)
+                W = W.reshape((layer_sizes[i+1], layer_sizes[i]))
+                hbias = np.zeros((layer_sizes[i+1],))
+                for j in range(hbias.size):
+                    hbias[j] = np.random.uniform(-bound, bound)
+                hbias = hbias.reshape((layer_sizes[i+1],1))
                 l = Layer(W, hbias, layer_sizes[i+1], layer_types[i+1])
                 layers.append(l)
         self.network = layers
@@ -67,13 +78,15 @@ class NeuralNet(object):
         returns:
             array hid:  the output of the layer
         '''
+        if not hasattr(layer, 'n_hidden'):
+            layer = layer[0]
         hid = np.zeros((data.shape[0], layer.n_hidden))
         breaks = range(0, hid.shape[0], 128)
         breaks.append(hid.shape[0])
         for i in range(len(breaks)-1):
             s = breaks[i]
             e = breaks[i+1]
-            act = gp.dot(data[s:e], layer.W) + layer.hbias
+            act = gp.dot(data[s:e], layer.W.T) + layer.hbias.T
             if layer.hidtype == 'sigmoid':
                 hid[s:e] = (act.logistic()).as_numpy_array()
             else:
@@ -81,7 +94,7 @@ class NeuralNet(object):
         return hid
 
     def train(self, network, data, targets, validX=None, validT=None, max_iter=100,
-            validErrFunc='classification', targetCost='linSquaredErr'):
+            validErrFunc='classification', targetCost='linSquaredErr', initialfit=5):
         '''
         Trains the network using backprop
 
@@ -98,6 +111,7 @@ class NeuralNet(object):
                             linSquaredErr, crossEntropy, or softMax
                             linSquaredErr works only for gaussian output units
                             softmax works only for exp output units (not implemented)
+            int initialfit: if n>0, top layer only will be trained for n iterations
         '''
         # initialize parameteres
         self.validErrFunc = validErrFunc
@@ -109,8 +123,7 @@ class NeuralNet(object):
                     self.network[i].hbias.shape[0]
         self.numunits = numunits
         self.batch_size = 128
-        initialfit = 0              # number of iters to train top layer only
-        self.weights = np.ones((self.n,))
+        self.weights = np.ones((self.n,1))
         
         # For estimating test error
         tindex = np.arange(self.n)
@@ -134,7 +147,8 @@ class NeuralNet(object):
                 print "Iteration %3d: TrainErr = %4.3f" %(i+1, trainerr)
             # Train the top layer only for initialfit iters
             if (i < initialfit):
-                network[-1] = self.doBackprop(transformedX, targets, [network[-1]])
+                toplayer = self.doBackprop(transformedX, targets, [network[-1]])
+                network[-1] = toplayer[0]
             else:
                 network = self.doBackprop(data, targets, network)
 
@@ -203,40 +217,44 @@ class NeuralNet(object):
 
             # flatten out the weights and store them in v
             v = []
-            for i in range(len(network)):
+            for i in range(no_layers):
                 w = network[i].W.as_numpy_array()
                 b = network[i].hbias.as_numpy_array()
                 v.extend((w.reshape((w.shape[0]*w.shape[1],))).tolist())
-                v.extend(b.tolist())
+                v.extend((b.reshape((b.shape[0]*b.shape[1],))).tolist())
             v = np.asarray(v)
-            
-            # Conjugate gradient minimiziation
-            #result = scipy.optimize.minimize(self.backprop_gradient, v, 
-            #        args=(network, tmpX, tmpT, tmpW),
-            #method='CG', jac=True)
-            #print "Success: " + str(result.success)
-            #if result.success is False:
-            #    print result.message
-            #    print "Number of evaluations: " + str(result.nfev)
-            #    #print result.x.shape
-            #v = result.x
 
-            result = minimize.minimize(self.backprop_gradient, v, args=(network, 
-                tmpX, tmpT, tmpW), length=3)
-            v = result[0]
-            #print result[1], result[2]
+            # Conjugate gradient minimiziation
+            result = scipy.optimize.minimize(self.backprop_gradient, v, 
+                    args=(network, tmpX, tmpT, tmpW),
+                    method='CG', jac=True, options={'maxiter': 100})
+            print "Success: %s" %str(result.success)
+            v = result.x
 
             # unflatten v and put new weights back
             ind =0 
-            for i in range(len(network)):
+            for i in range(no_layers):
                 h,w = network[i].W.shape
                 network[i].W = gp.garray((v[ind:(ind+h*w)]).reshape((h,w)))
                 ind += h*w
                 b = len(network[i].hbias)
-                network[i].hbias = gp.garray(v[ind:(ind+b)])
+                network[i].hbias = gp.garray((v[ind:(ind+b)]).reshape((b,1)))
                 ind += b
-        return network
+
+        # debugging help
+        #print "=================="
+        #print "W 1", network[0].W.shape
+        #print network[0].W
+        #print "bias 1", network[0].hbias.shape
+        #print network[0].hbias
+        #print "W 2", network[1].W.shape
+        #print network[1].W
+        #print "bias 2", network[1].hbias.shape
+        #print network[1].hbias
+        #print "=================="
         
+        return network
+    
     def backprop_gradient(self, v, network, X, targets, weights):
         '''
         Calculates the value of the cost function and the gradient for CG 
@@ -254,6 +272,8 @@ class NeuralNet(object):
 
         This function is called by scipy's minimize function during optimization
         '''
+        if len(v.shape) == 1:
+            v = v.reshape((v.shape[0],1))
         # initialize variables
         n = X.shape[0]
         numHiddenLayers = len(network)
@@ -264,8 +284,8 @@ class NeuralNet(object):
             h,w = network[i].W.shape
             network[i].W = gp.garray((v[ind:(ind+h*w)]).reshape((h,w)))
             ind += h*w
-            b = len(network[i].hbias)
-            network[i].hbias = gp.garray(v[ind:(ind+b)])
+            b = network[i].hbias.shape[0]
+            network[i].hbias = gp.garray(v[ind:(ind+b)]).reshape((b,1))
             ind += b
 
         # Run data through the network, keeping activations of each layer
@@ -285,11 +305,11 @@ class NeuralNet(object):
         if self.targetCost == 'crossEntropy':
             # see www.stanford.edu/group/pdplab/pdphandbook/handbookch6.html
             cost = (-1.0/n) * np.sum(np.sum(targets * np.log(acts[-1]) + \
-                    (1.0 - targets) * np.log(1.0 - acts[-1]), axis=1) * weights)
+                    (1.0 - targets) * np.log(1.0 - acts[-1]), axis=1) * weights.T)
             Ix = (acts[-1] - targets) / n
         else: #self.targetCost == 'linSquaredErr':
             cost = 0.5 * np.sum(np.sum(np.square(acts[-1] - targets), axis=1) * \
-                    weights)
+                    weights.T)
             Ix = (acts[-1] - targets)
         Ix *= np.tile(weights, (1, Ix.shape[1])).reshape((Ix.shape[0],Ix.shape[1]))
         Ix = gp.garray(Ix)
@@ -304,23 +324,18 @@ class NeuralNet(object):
             delta = gp.dot(acts[i].T, Ix)
 
             # split delta into weights and bias parts
-            dW.append(delta[:-1].T)
-            try:
-                db.append(delta[-1].T)
-            except AttributeError:
-                # when layer only has 1 unit
-                db.append(delta[-1])
+            dW.append(delta[:-1,:].T)
+            db.append(delta[-1,:].T)
 
             # backpropagate the error
             if i > 0:
-                # fix the numpy 1d array issue
-                biasr = network[i].hbias.reshape((1,network[i].hbias.shape[0]))
                 if network[i-1].hidtype == 'sigmoid':
-                    Ix = gp.dot(Ix,gp.concatenate((network[i].W,biasr)).T)\
-                            * acts[i] * (1.0 - acts[i])
+                    Ix = gp.dot(Ix,gp.concatenate((network[i].W,network[i].hbias),
+                        axis=1)) * acts[i] * (1.0 - acts[i])
                 elif network[i-1].hidtype == 'gaussian':
-                    Ix = gp.dot(Ix,gp.concatentate((network[i].W,biasr)).T)
-                Ix = Ix[:,-1]
+                    Ix = gp.dot(Ix,gp.concatentate((network[i].W,network[i].hbias),
+                        axis=1))
+                Ix = Ix[:,:-1]
             gp.free_reuse_cache()
         dW.reverse()
         db.reverse()
@@ -329,23 +344,13 @@ class NeuralNet(object):
         grad = np.zeros_like(v)
         ind = 0
         for i in range(numHiddenLayers):
-            try: 
-                grad[ind:(ind+dW[i].size)] = \
-                   (dW[i].reshape((dW[i].shape[0]*dW[i].shape[1]))).as_numpy_array()
-            except IndexError:
-                grad[ind:(ind+dW[i].size)] = dW[i].as_numpy_array()
+            grad[ind:(ind+dW[i].size)] = \
+                 (dW[i].reshape((dW[i].shape[0]*dW[i].shape[1],1))).as_numpy_array()
             ind += dW[i].size
-            try:
-                grad[ind:(ind+db[i].size)] = db[i].as_numpy_array()
-                ind += db[i].size
-            except AttributeError:
-                # when layer has only 1 node
-                grad[ind:(ind+1)] = db[i]
-                ind += 1
-
+            grad[ind:(ind+db[i].size),0] = db[i].as_numpy_array()
+            ind += db[i].size
+        grad = grad.reshape((grad.shape[0],))
         return cost, grad  
-
-
 
 class Layer(object):
     '''
@@ -359,6 +364,9 @@ class Layer(object):
     '''
     def __init__(self, W, hbias, n_hidden, hidtype):
         self.W = gp.garray(W)
+        # convert 1d arrays to 2d
+        if len(hbias.shape) == 1:
+            hbias = hbias.reshape((1,hbias.shape[0]))
         self.hbias = gp.garray(hbias)
         self.n_hidden = n_hidden
         self.hidtype = hidtype
@@ -369,7 +377,18 @@ def demo_xor():
     data = np.array([[0.,0.],[0.,1.],[1.,0.],[1.,1.]])
     targets = np.array([[0.],[1.],[1.],[0.]])
     nn = NeuralNet(layer_sizes=[2,2,1], layer_types=['sigmoid','sigmoid','sigmoid'])
-    net = nn.train(nn.network, data, targets, max_iter=10, targetCost='crossEntropy')
+    print "initial parameters"
+    print "=================="
+    print "W 1", nn.network[0].W.shape
+    print nn.network[0].W
+    print "bias 1", nn.network[0].hbias.shape
+    print nn.network[0].hbias
+    print "W 2", nn.network[1].W.shape
+    print nn.network[1].W
+    print "bias 2", nn.network[1].hbias.shape
+    print nn.network[1].hbias
+    print "=================="
+    net = nn.train(nn.network, data, targets, max_iter=10, targetCost='crossEntropy', initialfit=0)
     print "network test:"
     output = nn.run_through_network(data, net)
     print output
