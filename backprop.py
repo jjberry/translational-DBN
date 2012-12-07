@@ -366,7 +366,7 @@ class Layer(object):
         self.W = gp.garray(W)
         # convert 1d arrays to 2d
         if len(hbias.shape) == 1:
-            hbias = hbias.reshape((1,hbias.shape[0]))
+            hbias = hbias.reshape((hbias.shape[0],1))
         self.hbias = gp.garray(hbias)
         self.n_hidden = n_hidden
         self.hidtype = hidtype
@@ -388,7 +388,8 @@ def demo_xor():
     print "bias 2", nn.network[1].hbias.shape
     print nn.network[1].hbias
     print "=================="
-    net = nn.train(nn.network, data, targets, max_iter=10, targetCost='crossEntropy', initialfit=0)
+    net = nn.train(nn.network, data, targets, max_iter=10, targetCost='crossEntropy', 
+            initialfit=0)
     print "network test:"
     output = nn.run_through_network(data, net)
     print output
