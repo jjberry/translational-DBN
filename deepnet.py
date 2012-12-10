@@ -1,5 +1,7 @@
 import sys
-sys.path.append('/home/berry/gnumpy')
+import os
+home = os.path.expanduser("~")
+sys.path.append(os.path.join(home, 'gnumpy'))
 import gnumpy as gp
 import numpy as np
 
@@ -45,10 +47,14 @@ class RBM(object):
         if n_hidden is None:
             n_hidden = self.n_visible
         self.n_hidden = n_hidden
+        n = self.n_visible*self.n_hidden + self.n_hidden
+        bound = 2.38 / np.sqrt(n)
         if W is None:
-            W = 0.1 * gp.randn(self.n_visible, self.n_hidden)
-        else:
-            W = gp.garray(W)
+            W = np.zeros((self.n_visible, self.n_hidden))
+            for i in range(self.n_visible):
+                for j in range(self.n_hidden):
+                    W[i,j] = np.random.uniform(-bound, bound)
+        W = gp.garray(W)
         self.W = W
         if vbias is None:
             vbias = gp.zeros(self.n_visible)
@@ -56,9 +62,10 @@ class RBM(object):
             vbias = gp.garray(vbias)
         self.vbias = vbias
         if hbias is None:
-            hbias = -4. * gp.ones(self.n_hidden)
-        else:
-            hbias = gp.garray(hbias)
+            hbias = np.zeros((self.n_hidden,))
+            for i in range(self.n_hidden):
+                hbias[i] = np.random.uniform(-bound, bound)
+        hbias = gp.garray(hbias)
         self.hbias = hbias
         #initialize updates
         self.wu_vh = gp.zeros((self.n_visible, self.n_hidden))
@@ -281,11 +288,11 @@ class DeepNet(object):
 
 if __name__ == "__main__":
     data = np.load('scaled_images.npy')
+    data = np.asarray(data, dtype='float32')
     data /= 255.0
     #m = data.mean(0)
     #s = data.std(0)
     #data = (data - m)/s
-    data = np.asarray(data, dtype='float32')
     #data = gp.garray(data)
     t = DeepNet([data.shape[1], data.shape[1], data.shape[1], data.shape[1]*2],
             ['sigmoid', 'sigmoid', 'sigmoid', 'sigmoid'])

@@ -1,5 +1,7 @@
 import sys
-sys.path.append('/home/berry/gnumpy')
+import os
+home = os.path.expanduser("~")
+sys.path.append(os.path.join(home, 'gnumpy'))
 import gnumpy as gp
 import numpy as np
 import scipy
