@@ -12,7 +12,7 @@ def demo_autoencoder():
     #set up and train the initial deepnet
     dnn = deepnet.DeepNet([data.shape[1], data.shape[1], data.shape[1], 
         data.shape[1]*2], ['gaussian','sigmoid','sigmoid','sigmoid'])
-    dnn.train(data, [75, 75, 75, 0.0025])
+    dnn.train(data, [75, 75, 75], 0.0025)
     #unroll the deepnet into an autoencoder
     autoenc = unroll_network(dnn.network)
     #fine-tune with backprop
