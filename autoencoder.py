@@ -13,8 +13,14 @@ def demo_autoencoder():
     dnn = deepnet.DeepNet([data.shape[1], data.shape[1], data.shape[1], 
         data.shape[1]*2], ['gaussian','sigmoid','sigmoid','sigmoid'])
     dnn.train(data, [5, 5, 5], 0.0025)
+    #save the trained deepnet
+    pickle.dump(dnn, file('pretrained.pkl','wb'))
     #unroll the deepnet into an autoencoder
     autoenc = unroll_network(dnn.network)
+    #print out the sizes of the autoenc layers
+    for i in range(len(autoenc)):
+        print autoenc[i].W.shape
+        print autoenc[i].hbias.shape
     #fine-tune with backprop
     mlp = backprop.NeuralNet(network=autoenc)
     trained = mlp.train(mlp.network, data, data, max_iter=100, 
