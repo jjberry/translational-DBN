@@ -37,8 +37,8 @@ def unroll_network(network):
     decoder = []
     encoder = []
     for i in range(len(network)):
-        elayer = backprop.Layer(network[i].W, network[i].hbias, network[i].n_hidden, network[i].hidtype)
-        dlayer = backprop.Layer(network[i].W.T, network[i].vbias, network[i].n_visible, network[i].vistype)
+        elayer = backprop.Layer(network[i].W.T, network[i].hbias, network[i].n_hidden, network[i].hidtype)
+        dlayer = backprop.Layer(network[i].W, network[i].vbias, network[i].n_visible, network[i].vistype)
         encoder.append(elayer)
         decoder.append(dlayer)
     decoder.reverse()
