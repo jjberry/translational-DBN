@@ -19,7 +19,7 @@ class NeuralNet(object):
     '''
     def __init__(self, network=None, layer_sizes=None, layer_types=None):
         layers = []
-        if network is not None:
+        if (network != None):
             # copy the weights from the given network onto the GPU
             for rbm in network:
                 l = Layer(rbm.W, rbm.hbias, rbm.n_hidden, rbm.hidtype)

@@ -12,11 +12,11 @@ def demo_autoencoder():
     #set up and train the initial deepnet
     dnn = deepnet.DeepNet([data.shape[1], data.shape[1], data.shape[1], 
         data.shape[1]*2], ['gaussian','sigmoid','sigmoid','sigmoid'])
-    dnn.train(data, [75, 75, 75], 0.0025)
+    dnn.train(data, [5, 5, 5], 0.0025)
     #unroll the deepnet into an autoencoder
     autoenc = unroll_network(dnn.network)
     #fine-tune with backprop
-    mlp = backprop.NeuralNet(autoenc)
+    mlp = backprop.NeuralNet(network=autoenc)
     trained = mlp.train(mlp.network, data, data, max_iter=100, 
             validErrFunc='reconstruction', targetCost='linSquaredErr')
     #save
@@ -30,13 +30,14 @@ def unroll_network(network):
     '''
     decoder = []
     encoder = []
-    for rbm in network:
-        elayer = backprop.Layer(rbm.W, rbm.hbias, rbm.n_hidden, rbm.hidtype)
-        dlayer = backprop.Layer(rbm.W.T, rbm.vbias, rbm.n_visible, rbm.vistype)
+    for i in range(len(network)):
+        elayer = backprop.Layer(network[i].W, network[i].hbias, network[i].n_hidden, network[i].hidtype)
+        dlayer = backprop.Layer(network[i].W.T, network[i].vbias, network[i].n_visible, network[i].vistype)
         encoder.append(elayer)
         decoder.append(dlayer)
     decoder.reverse()
-    return encoder.extend(decoder)
+    encoder.extend(decoder)
+    return encoder
 
 if __name__ == "__main__":
     demo_autoencoder()
