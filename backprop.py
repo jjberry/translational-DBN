@@ -96,7 +96,8 @@ class NeuralNet(object):
         return hid
 
     def train(self, network, data, targets, validX=None, validT=None, max_iter=100,
-            validErrFunc='classification', targetCost='linSquaredErr', initialfit=5):
+            validErrFunc='classification', targetCost='linSquaredErr', initialfit=5,
+            cg_iter=20):
         '''
         Trains the network using backprop
 
@@ -114,17 +115,20 @@ class NeuralNet(object):
                             linSquaredErr works only for gaussian output units
                             softmax works only for exp output units (not implemented)
             int initialfit: if n>0, top layer only will be trained for n iterations
+            int cg_iter:    the max number of iterations for conjugate gradient
+                            optimization, default=20
         '''
         # initialize parameteres
         self.validErrFunc = validErrFunc
         self.targetCost = targetCost
         self.n, self.m = data.shape
+        self.cg_iter = cg_iter
         numunits = 0
         for i in range(len(self.network)):
             numunits = numunits + self.network[i].W.shape[1] + \
                     self.network[i].hbias.shape[0]
         self.numunits = numunits
-        self.batch_size = 128
+        self.batch_size = 1024
         self.weights = np.ones((self.n,1))
         
         # For estimating test error
@@ -207,6 +211,7 @@ class NeuralNet(object):
         no_layers = len(network)
         index = np.arange(self.n)
         np.random.shuffle(index)
+        nbatches = len(range(0,self.n, self.batch_size))
         for batch in range(0, self.n, self.batch_size):
             if batch + 2*self.batch_size > self.n:
                 batchend = self.n
@@ -229,8 +234,10 @@ class NeuralNet(object):
             # Conjugate gradient minimiziation
             result = scipy.optimize.minimize(self.backprop_gradient, v, 
                     args=(network, tmpX, tmpT, tmpW),
-                    method='CG', jac=True, options={'maxiter': 100})
-            print "Success: %s" %str(result.success)
+                    method='CG', jac=True, options={'maxiter': self.cg_iter})
+            if (batch%10 == 0):
+                print "batch %d of %d. success: %s" %(batch+1, nbatches, 
+                     str(result.success))
             v = result.x
 
             # unflatten v and put new weights back
@@ -391,7 +398,7 @@ def demo_xor():
     print nn.network[1].hbias
     print "=================="
     net = nn.train(nn.network, data, targets, max_iter=10, targetCost='crossEntropy', 
-            initialfit=0)
+            initialfit=0, cg_iter=100)
     print "network test:"
     output = nn.run_through_network(data, net)
     print output
