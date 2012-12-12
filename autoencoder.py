@@ -23,7 +23,7 @@ def demo_autoencoder():
         print autoenc[i].hbias.shape
     #fine-tune with backprop
     mlp = backprop.NeuralNet(network=autoenc)
-    trained = mlp.train(mlp.network, data, data, max_iter=100, 
+    trained = mlp.train(mlp.network, data, data, max_iter=10, 
             validErrFunc='reconstruction', targetCost='linSquaredErr')
     #save
     pickle.dump(trained, file('network.pkl','wb'))
