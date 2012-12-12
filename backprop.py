@@ -212,6 +212,7 @@ class NeuralNet(object):
         index = np.arange(self.n)
         np.random.shuffle(index)
         nbatches = len(range(0,self.n, self.batch_size))
+        count = 0 
         for batch in range(0, self.n, self.batch_size):
             if batch + 2*self.batch_size > self.n:
                 batchend = self.n
@@ -235,9 +236,10 @@ class NeuralNet(object):
             result = scipy.optimize.minimize(self.backprop_gradient, v, 
                     args=(network, tmpX, tmpT, tmpW),
                     method='CG', jac=True, options={'maxiter': self.cg_iter})
-            if (batch%10 == 0):
-                print "batch %d of %d. success: %s" %(batch+1, nbatches, 
+            if (count%10 == 0):
+                print "batch %d of %d. success: %s" %(count+1, nbatches, 
                      str(result.success))
+            count += 1         
             v = result.x
 
             # unflatten v and put new weights back
